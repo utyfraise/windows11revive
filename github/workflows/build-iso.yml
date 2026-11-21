@@ -1,0 +1,47 @@
+name: Build Windows11Revive ISO
+
+# Run it by hand: repository > Actions > "Build Windows11Revive ISO" > Run workflow.
+# The finished ISO appears at the bottom of the run page as a downloadable artifact.
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - name: Check out files
+        uses: actions/checkout@v4
+
+      - name: Free up disk space on the runner
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Install ISO tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xorriso squashfs-tools
+
+      - name: Download Linux Mint 22.3 Xfce ISO
+        run: |
+          curl -fL --retry 3 -o mint.iso \
+            https://mirror.seas.harvard.edu/linuxmint/stable/22.3/linuxmint-22.3-xfce-64bit.iso
+          ls -lh mint.iso
+
+      - name: Build the ISO
+        env:
+          # Official checksum for linuxmint-22.3-xfce-64bit.iso
+          # (from linuxmint stable/22.3/sha256sum.txt). Build fails if it doesn't match.
+          EXPECT_SHA256: 45a835b5dddaf40e84d776549e0b19b3fbd49673b6cc6434ebddbfcd217df776
+        run: sudo -E bash ./build-iso.sh mint.iso Windows11Revive.iso
+
+      - name: Upload the ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows11Revive-iso
+          path: |
+            Windows11Revive.iso
+            Windows11Revive.iso.sha256
+          compression-level: 0
+          retention-days: 7
